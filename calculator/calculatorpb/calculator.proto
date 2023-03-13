@@ -61,4 +61,9 @@ service CalculatorService {
 
     // handle error
     rpc Square(SquareRequest) returns (SquareResponse) {}
+
+    // deadline response gioi han thoi gian chờ
+    rpc SumWithDeadline(SumRequest) returns (SumResponse) {}
+
+    // ssl
 }

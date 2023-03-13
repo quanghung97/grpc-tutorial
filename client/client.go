@@ -9,11 +9,19 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 )
 
 func main() {
-	cc, err := grpc.Dial("localhost:5000", grpc.WithInsecure())
+	certFile := "ssl/server.crt"
+	creds, sslErr := credentials.NewClientTLSFromFile(certFile, "localhost")
+	if sslErr != nil {
+		log.Fatalf("create client creds ssl err %v\n", sslErr)
+		return
+	}
+
+	cc, err := grpc.Dial("localhost:5000", grpc.WithTransportCredentials(creds))
 
 	if err != nil {
 		log.Fatalf("err while dial %v", err)
@@ -26,11 +34,13 @@ func main() {
 
 	// log.Fatalf("service client %f", client)
 
-	// callSum(client)
+	callSum(client)
 	// callPND(client)
 	// callAverage(client)
 	// callFindMax(client)
-	callSquareRoot(client, -9)
+	// callSquareRoot(client, -9)
+	// callSumWithDeadline(client, 1*time.Second) // bị timeout
+	// callSumWithDeadline(client, 5*time.Second) // ko bị timeout
 }
 
 func callSum(c calculatorpb.CalculatorServiceClient) {
@@ -199,4 +209,34 @@ func callSquareRoot(c calculatorpb.CalculatorServiceClient, num int32) {
 	}
 
 	log.Printf("square api response %v", resp.GetSquareRoot())
+}
+
+// implement deadline chờ response từ server
+func callSumWithDeadline(c calculatorpb.CalculatorServiceClient, timeout time.Duration) {
+	log.Println("calling sum with deadline api")
+
+	// define context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	// finally run ending context => remove context to save resource
+	defer cancel()
+
+	resp, err := c.SumWithDeadline(ctx, &calculatorpb.SumRequest{
+		Num1: 7,
+		Num2: 6,
+	})
+
+	if err != nil {
+		if statusErr, ok := status.FromError(err); ok {
+			if statusErr.Code() == codes.DeadlineExceeded {
+				log.Println("call sum api with deadline DeadlineExceeded")
+			} else {
+				log.Printf("call sum api with deadline err %v", err)
+			}
+		} else {
+			log.Fatalf("call sum api with deadline unknown err %v", err)
+		}
+		return
+	}
+
+	log.Printf("sum api with deadline response %v", resp.GetResult())
 }

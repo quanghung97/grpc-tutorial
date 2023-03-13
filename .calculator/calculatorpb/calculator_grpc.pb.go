@@ -32,6 +32,8 @@ type CalculatorServiceClient interface {
 	FindMax(ctx context.Context, opts ...grpc.CallOption) (CalculatorService_FindMaxClient, error)
 	// handle error
 	Square(ctx context.Context, in *SquareRequest, opts ...grpc.CallOption) (*SquareResponse, error)
+	// deadline response gioi han thoi gian chờ
+	SumWithDeadline(ctx context.Context, in *SumRequest, opts ...grpc.CallOption) (*SumResponse, error)
 }
 
 type calculatorServiceClient struct {
@@ -157,6 +159,15 @@ func (c *calculatorServiceClient) Square(ctx context.Context, in *SquareRequest,
 	return out, nil
 }
 
+func (c *calculatorServiceClient) SumWithDeadline(ctx context.Context, in *SumRequest, opts ...grpc.CallOption) (*SumResponse, error) {
+	out := new(SumResponse)
+	err := c.cc.Invoke(ctx, "/calculator.CalculatorService/SumWithDeadline", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CalculatorServiceServer is the server API for CalculatorService service.
 // All implementations must embed UnimplementedCalculatorServiceServer
 // for forward compatibility
@@ -171,6 +182,8 @@ type CalculatorServiceServer interface {
 	FindMax(CalculatorService_FindMaxServer) error
 	// handle error
 	Square(context.Context, *SquareRequest) (*SquareResponse, error)
+	// deadline response gioi han thoi gian chờ
+	SumWithDeadline(context.Context, *SumRequest) (*SumResponse, error)
 	mustEmbedUnimplementedCalculatorServiceServer()
 }
 
@@ -192,6 +205,9 @@ func (UnimplementedCalculatorServiceServer) FindMax(CalculatorService_FindMaxSer
 }
 func (UnimplementedCalculatorServiceServer) Square(context.Context, *SquareRequest) (*SquareResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Square not implemented")
+}
+func (UnimplementedCalculatorServiceServer) SumWithDeadline(context.Context, *SumRequest) (*SumResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SumWithDeadline not implemented")
 }
 func (UnimplementedCalculatorServiceServer) mustEmbedUnimplementedCalculatorServiceServer() {}
 
@@ -315,6 +331,24 @@ func _CalculatorService_Square_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CalculatorService_SumWithDeadline_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SumRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CalculatorServiceServer).SumWithDeadline(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/calculator.CalculatorService/SumWithDeadline",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CalculatorServiceServer).SumWithDeadline(ctx, req.(*SumRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CalculatorService_ServiceDesc is the grpc.ServiceDesc for CalculatorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -329,6 +363,10 @@ var CalculatorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Square",
 			Handler:    _CalculatorService_Square_Handler,
+		},
+		{
+			MethodName: "SumWithDeadline",
+			Handler:    _CalculatorService_SumWithDeadline_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

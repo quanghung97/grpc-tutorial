@@ -12,6 +12,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 )
 
@@ -137,6 +138,25 @@ func (*server) Square(ctx context.Context, req *calculatorpb.SquareRequest) (*ca
 	return resp, nil
 }
 
+func (*server) SumWithDeadline(ctx context.Context, req *calculatorpb.SumRequest) (*calculatorpb.SumResponse, error) {
+	log.Println("sum with deadline called...")
+
+	// fake time waiting chờ 3s mới response cho client
+	for i := 0; i < 3; i++ {
+		if ctx.Err() == context.Canceled {
+			log.Println("context.Canceled...")
+			return nil, status.Error(codes.Canceled, "client canceled req")
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	resp := &calculatorpb.SumResponse{
+		Result: req.GetNum1() + req.GetNum2(),
+	}
+
+	return resp, nil
+}
+
 func main() {
 	lis, err := net.Listen("tcp", "0.0.0.0:5000")
 
@@ -144,7 +164,17 @@ func main() {
 		log.Fatalf("err listen %v", err)
 	}
 
-	s := grpc.NewServer()
+	certFile := "ssl/server.crt"
+	keyFile := "ssl/server.key"
+
+	creds, sslErr := credentials.NewServerTLSFromFile(certFile, keyFile)
+	if sslErr != nil {
+		log.Fatalf("create creds ssl err %v\n", sslErr)
+		return
+	}
+	opts := grpc.Creds(creds)
+
+	s := grpc.NewServer(opts)
 
 	calculatorpb.RegisterCalculatorServiceServer(s, &server{})
 
